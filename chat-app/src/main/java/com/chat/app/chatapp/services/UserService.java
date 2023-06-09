@@ -1,5 +1,7 @@
 package com.chat.app.chatapp.services;
 
+import com.chat.app.chatapp.dto.user.UserResponse;
+import com.chat.app.chatapp.mapper.UserMapper;
 import com.chat.app.chatapp.model.user.User;
 import com.chat.app.chatapp.repository.UserRepository;
 import com.chat.app.chatapp.security.UserPrincipal;
@@ -25,11 +27,18 @@ public class UserService {
         return UserPrincipal.create(user);
     }
 
-    public UserDetails loadUserById(String id) {
-        User user = userRepository.findById(id).orElseThrow(
-                () -> new UsernameNotFoundException("User not found with id : " + id)
+    public UserDetails loadUserDetailsById(String id) {
+        return UserPrincipal.create(findUserById(id));
+    }
+
+    public UserResponse getUserResponse(String id) {
+        return UserMapper.mapUserToUserResponse(findUserById(id));
+    }
+
+    private User findUserById(String id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with id : " + id)
         );
-        return UserPrincipal.create(user);
     }
 
 }
