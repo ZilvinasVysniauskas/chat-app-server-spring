@@ -6,7 +6,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.security.SignatureException;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+import java.util.Base64;
 import java.util.Date;
 
 @Slf4j
@@ -26,24 +30,28 @@ public class TokenProvider {
                 .setSubject((userPrincipal.getId()))
                 .setIssuedAt(new Date())
                 .setExpiration(expiryDate)
-                .signWith(SignatureAlgorithm.HS512, appConfig.getTokenSecret())
+                .signWith(getSecretKey(), SignatureAlgorithm.HS512)
                 .compact();
     }
 
     public String getUserIdFromToken(String token) {
-        Claims claims = Jwts.parser()
-                .setSigningKey(appConfig.getTokenSecret())
-                .parseClaimsJws(token)
-                .getBody();
 
-        return claims.getSubject();
+        Jws<Claims> claimsJws = Jwts.parserBuilder()  //this is new since 0.11.0
+                .setSigningKey(getSecretKey())
+                .build()
+                .parseClaimsJws(token);
+
+        return claimsJws.getBody().getSubject();
     }
 
     public boolean validateToken(String authToken) {
         try {
-            Jwts.parser().setSigningKey(appConfig.getTokenSecret()).parseClaimsJws(authToken);
+            Jwts.parserBuilder()
+                    .setSigningKey(getSecretKey())
+                    .build()
+                    .parseClaimsJws(authToken);
             return true;
-        } catch (SignatureException ex) {
+        } catch (SignatureException  ex) {
             log.error("Invalid JWT signature");
         } catch (MalformedJwtException ex) {
             log.error("Invalid JWT token");
@@ -55,6 +63,11 @@ public class TokenProvider {
             log.error("JWT claims string is empty.");
         }
         return false;
+    }
+
+    private SecretKey getSecretKey() {
+        byte[] decodedKey = Base64.getDecoder().decode(appConfig.getTokenSecret());
+        return new SecretKeySpec(decodedKey, 0, decodedKey.length, "HmacSHA512");
     }
 
 }
